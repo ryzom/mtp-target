@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -212,7 +213,7 @@ CGuiToc *CGuiToc::Load(const string &filename)
 
 int CGuiToc::sendChat(lua_State *L)
 {
-	unsigned int len;
+	size_t len;
 	const char *charChatLine= luaL_checklstring(L, 1, &len);
 	string chatLine(charChatLine);
 	CNetworkTask::getInstance().chat(chatLine);
@@ -221,7 +222,7 @@ int CGuiToc::sendChat(lua_State *L)
 
 int CGuiToc::sendCommand(lua_State *L)
 {
-	unsigned int len;
+	size_t len;
 	const char *cCommandLine= luaL_checklstring(L, 1, &len);
 	string cmdLine(cCommandLine);
 	CNetworkTask::getInstance().command(cmdLine);
@@ -230,7 +231,7 @@ int CGuiToc::sendCommand(lua_State *L)
 
 int CGuiToc::sendToConsole(lua_State *L)
 {
-	unsigned int len;
+	size_t len;
 	const char *cText= luaL_checklstring(L, 1, &len);
 	string text(cText);
 	CChatTask::getInstance().addToInput(text);
@@ -239,7 +240,7 @@ int CGuiToc::sendToConsole(lua_State *L)
 
 int CGuiToc::getGuiElementByName(lua_State *L)
 {
-	unsigned int len;
+	size_t len;
 	const char *elementName = luaL_checklstring(L, 1, &len);
 	string name(elementName);
 	CGuiObject *object = CGuiCustom::getInstance().getTocByLuaState(L)->xml->get(name);
@@ -254,7 +255,7 @@ int CGuiToc::getGuiElementByName(lua_State *L)
 
 int CGuiToc::loadXml(lua_State *L)
 {
-	unsigned int len;
+	size_t len;
 	const char *cfileName = luaL_checklstring(L, 1, &len);
 	string filename(cfileName);
 

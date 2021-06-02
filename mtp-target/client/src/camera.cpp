@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -26,6 +27,7 @@
 
 #include <nel/misc/debug.h>
 #include <nel/misc/common.h>
+#include <nel/misc/variable.h>
 
 #include "camera.h"
 #include "3d_task.h"
@@ -46,6 +48,21 @@ using namespace NLMISC;
 
 
 //
+// Variables
+//
+
+static CVariable<float> OpenHeight("mtp", "OpenHeight", "", 1.0f, 0, true);
+static CVariable<float> OpenBackDist("mtp", "OpenBackDist", "", 1.0f, 0, true);
+static CVariable<float> OpenTargetHeight("mtp", "OpenTargetHeight", "", 1.0f, 0, true);
+static CVariable<float> OpenTargetBackDist("mtp", "OpenTargetBackDist", "", 1.0f, 0, true);
+static CVariable<float> CloseHeight("mtp", "CloseHeight", "", 1.0f, 0, true);
+static CVariable<float> CloseBackDist("mtp", "CloseBackDist", "", 1.0f, 0, true);
+static CVariable<float> CloseTargetHeight("mtp", "CloseTargetHeight", "", 1.0f, 0, true);
+static CVariable<float> CloseTargetBackDist("mtp", "CloseTargetBackDist", "", 1.0f, 0, true);
+static CVariable<float> RotationSpeed("mtp", "RotationSpeed", "", 1.0f, 0, true);
+
+
+//
 // Functions
 //
 
@@ -57,17 +74,14 @@ FILE *filestat = 0;
 
 void lookAt(CMatrix &m, const CVector &From, const CVector &At, const CVector &Up)
 {
-
-////	TODO IL FAUT BLINDER
-
 	CVector vectorY(At - From); // y vector
 	vectorY.normalize();
-	
+
 	// Get the dot product, and calculate the projection of the y basis vector onto the up vector. The projection is the z basis vector.
 	CVector vectorZ(Up - vectorY * (Up * vectorY));
-	
+
 	vectorZ.normalize();
-	
+
 	// the x basis vector
 	CVector vectorX = vectorY ^ vectorZ;
 
@@ -75,10 +89,6 @@ void lookAt(CMatrix &m, const CVector &From, const CVector &At, const CVector &U
 	m.setRot(vectorX, vectorY, vectorZ);
 	m.setPos(From);
 	m.scale (1.0f);
-
-	//m.rotateX(-C3DTask::getInstance().mouseListener().MouseY);
-	//m.rotateZ(C3DTask::getInstance().mouseListener().MouseX);
-	//m.translate(CVector(0, C3DTask::getInstance().mouseListener().MouseWheel * 2 * GSCALE,0));
 }
 
 
@@ -86,21 +96,21 @@ CCamera::CCamera()
 {
 	EId = 255;
 	InitialPosition = CVector(0.0f, 1000.0f*GScale, 1000.0f*GScale);
-	
+
 	reset();
 
 	ForcedSpeed = 1.0f;
 
-	OpenHeight			= CConfigFileTask::getInstance().configFile().getVar("OpenHeight").asFloat() * GScale;
-	OpenBackDist		= CConfigFileTask::getInstance().configFile().getVar("OpenBackDist").asFloat() * GScale;
-	OpenTargetHeight	= CConfigFileTask::getInstance().configFile().getVar("OpenTargetHeight").asFloat() * GScale;
-	OpenTargetBackDist	= CConfigFileTask::getInstance().configFile().getVar("OpenTargetBackDist").asFloat() * GScale;
-	CloseHeight			= CConfigFileTask::getInstance().configFile().getVar("CloseHeight").asFloat() * GScale;
-	CloseBackDist		= CConfigFileTask::getInstance().configFile().getVar("CloseBackDist").asFloat() * GScale;
-	CloseTargetHeight	= CConfigFileTask::getInstance().configFile().getVar("CloseTargetHeight").asFloat() * GScale;
-	CloseTargetBackDist	= CConfigFileTask::getInstance().configFile().getVar("CloseTargetBackDist").asFloat() * GScale;
-	RotationSpeed		= CConfigFileTask::getInstance().configFile().getVar("CameraRotationSpeed").asFloat();
-	
+// 	OpenHeight			= CConfigFileTask::instance().configFile().getVar("OpenHeight").asFloat() * GScale;
+// 	OpenBackDist		= CConfigFileTask::instance().configFile().getVar("OpenBackDist").asFloat() * GScale;
+// 	OpenTargetHeight	= CConfigFileTask::instance().configFile().getVar("OpenTargetHeight").asFloat() * GScale;
+// 	OpenTargetBackDist	= CConfigFileTask::instance().configFile().getVar("OpenTargetBackDist").asFloat() * GScale;
+// 	CloseHeight			= CConfigFileTask::instance().configFile().getVar("CloseHeight").asFloat() * GScale;
+// 	CloseBackDist		= CConfigFileTask::instance().configFile().getVar("CloseBackDist").asFloat() * GScale;
+// 	CloseTargetHeight	= CConfigFileTask::instance().configFile().getVar("CloseTargetHeight").asFloat() * GScale;
+// 	CloseTargetBackDist	= CConfigFileTask::instance().configFile().getVar("CloseTargetBackDist").asFloat() * GScale;
+// 	RotationSpeed		= CConfigFileTask::instance().configFile().getVar("RotationSpeed").asFloat();
+
 	CurrentHeight		= CloseHeight;
 	CurrentBackDist		= CloseBackDist;
 	CurrentTargetHeight   = CloseTargetHeight;
@@ -113,7 +123,11 @@ CCamera::CCamera()
 	MinDistFromStartPointToMoveVerticaly = 0.01f;
 
 #if STAT
-	filestat = fopen ("campos.csv", "wt");
+	if(filestat == 0)
+	{
+		CFile::deleteFile("campos.csv");
+		filestat = fopen ("campos.csv", "wt");
+	}
 #endif
 }
 
@@ -124,8 +138,9 @@ CCamera::~CCamera()
 #endif
 }
 
-void CCamera::setQuakeControl(bool on)
+/*void CCamera::setQuakeControl(bool on)
 {
+	nlinfo("CAM: set quake %d", on);
 	if (on)
 	{
 		MatrixQuake = MatrixFollow;
@@ -135,10 +150,11 @@ void CCamera::setQuakeControl(bool on)
 	{
 		ActiveMatrix = &MatrixFollow;
 	}
-}
+}*/
 
 void CCamera::setInitialPosition(const CVector &initialPosition)
 {
+	nlinfo("LEVEL: set init pos %f %f %f", initialPosition.x, initialPosition.y, initialPosition.z);
 	InitialPosition = initialPosition;
 	//Position = InitialPosition;
 }
@@ -151,7 +167,7 @@ void CCamera::reset()
 	CurrentLookAt   = CVector::Null;
 	/*
 	if(EId != 255)
-		CEntityManager::getInstance()[EId].interpolator().reset();
+		CEntityManager::instance()[EId].interpolator().reset();
 	*/
 	lookAt (MatrixFollow, Position, CurrentLookAt + CVector(0.0f, 0.1f, 0.0f),CVector(0.0f,0.0f,1.0f));
 	CurrentLookAt = Position + CVector(0.0f, -10.0f*GScale, 0.0f);
@@ -162,17 +178,17 @@ void CCamera::setFollowedEntity(uint8 eid)
 	EId = eid;
 	if(EId != 255)
 	{
-		if(CEntityManager::getInstance()[EId].interpolator().available())
+		if(CEntityManager::instance()[EId].interpolator().available())
 		{
-			Position = CEntityManager::getInstance()[EId].interpolator().currentPosition() + CVector(0.0f, 50.0f*GScale, 100.0f*GScale);
-			CurrentLookAt = CEntityManager::getInstance()[EId].interpolator().currentPosition();
+			Position = CEntityManager::instance()[EId].interpolator().currentPosition() + CVector(0.0f, 50.0f*GScale, 100.0f*GScale);
+			CurrentLookAt = CEntityManager::instance()[EId].interpolator().currentPosition();
 		}
 		else
 		{
 			Position = InitialPosition;
 			CurrentLookAt = Position + CVector(0.0f, -10.0f*GScale, 0.0f);
 		}
-		CHudTask::getInstance().setDisplayViewedName(CEntityManager::getInstance()[EId].name());
+		CHudTask::instance().setDisplayViewedName(CEntityManager::getInstance()[EId].name());
 	}
 }
 
@@ -215,24 +231,22 @@ void CCamera::update()
 	bool updated;
 	if(EId == 255) return;
 
-	float heightSpeed = 1.0f * CEntityManager::getInstance()[EId].interpolator().currentSmoothDirection().z / 0.5f;
-	if(heightSpeed > 0.0f)
-		heightSpeed = 0.0f;
+	float heightSpeed = 1.0f * CEntityManager::instance()[EId].interpolator().currentSmoothDirection().z / 0.5f;
+	if(heightSpeed > 0.0f) heightSpeed = 0.0f;
 	
-	double deltaTime = CTimeTask::getInstance().deltaTime();
-	double lpos = 3 * deltaTime / 1.0f;
-	if(lpos > 1.0f)
-		lpos = 1.0f;
-	CurrentHeightSpeed = lerp(CurrentHeightSpeed,heightSpeed,(float)lpos);
+	double deltaTime = CTimeTask::instance().deltaTime();
+	float lpos = 3.0f * float(deltaTime);
+	if(lpos > 1.0f) lpos = 1.0f;
+	CurrentHeightSpeed = lerp(CurrentHeightSpeed,heightSpeed,lpos);
 		
-	if(CEntityManager::getInstance()[EId].interpolator().available())
+	if(CEntityManager::instance()[EId].interpolator().available())
 	{
-		bool openClose = CEntityManager::getInstance()[EId].openClose();
+		bool openClose = CEntityManager::instance()[EId].openClose();
 		CVector distFromStart = CVector::Null;
-		if(CEntityManager::getInstance()[EId].startPointId()!=255 && CLevelManager::getInstance().levelPresent())
-			distFromStart = CEntityManager::getInstance()[EId].interpolator().currentPosition() - CLevelManager::getInstance().currentLevel().startPosition(CEntityManager::getInstance()[EId].startPointId());
+		if(CEntityManager::instance()[EId].startPointId()!=255 && CLevelManager::getInstance().levelPresent())
+			distFromStart = CEntityManager::instance()[EId].interpolator().currentPosition() - CLevelManager::getInstance().currentLevel().startPosition(CEntityManager::getInstance()[EId].startPointId());
 		if(distFromStart.norm()<MinDistFromStartPointToMoveVerticaly && !openClose)
-			CurrentHeightSpeed = 0;
+			CurrentHeightSpeed = 0.0f;
 
 		if(openClose)
 			updated = updateRampe(OpenBackDist, OpenHeight, OpenTargetBackDist, OpenTargetHeight);
@@ -242,7 +256,7 @@ void CCamera::update()
 	//if(updated)
 	{
 		CVector up(0.0f, 0.0f, 1.0f);
-		if((CurrentLookAt) !=up)
+		if(CurrentLookAt != up)
 			lookAt(MatrixFollow, Position, CurrentLookAt, up);
 		else
 			lookAt(MatrixFollow, Position, CurrentLookAt + CVector(0,0.00001f, 0), up);
@@ -254,11 +268,11 @@ void CCamera::update()
 
 bool CCamera::updateRampe(float backDist,float height,float targetBackDist,float targetHeight)
 {
-	double deltaTime = CTimeTask::getInstance().deltaTime();
+	double deltaTime = CTimeTask::instance().deltaTime();
 	bool res = true;
-	double lpos = RotationSpeed * deltaTime / 1.0f;
-	if(lpos>1.0f)
-		lpos=1.0f;
+	float lpos = RotationSpeed * float(deltaTime);
+	
+	if(lpos>1.0f) lpos=1.0f;
 	float ilpos = 1.0f - (float)lpos;
 
 	CurrentBackDist			= lerp(CurrentBackDist, backDist, (float)lpos);
@@ -266,14 +280,14 @@ bool CCamera::updateRampe(float backDist,float height,float targetBackDist,float
 	CurrentTargetBackDist	= lerp(CurrentTargetBackDist, targetBackDist, (float)lpos);
 	CurrentTargetHeight		= lerp(CurrentTargetHeight, targetHeight, (float)lpos);
 
-	bool openClose = CEntityManager::getInstance()[EId].openClose();
+	bool openClose = CEntityManager::instance()[EId].openClose();
 	CVector distFromStart = CVector::Null;
-	if(CEntityManager::getInstance()[EId].startPointId()!=255 && CLevelManager::getInstance().levelPresent())
-		distFromStart = CEntityManager::getInstance()[EId].interpolator().currentPosition() - CLevelManager::getInstance().currentLevel().startPosition(CEntityManager::getInstance()[EId].startPointId());
+	if(CEntityManager::instance()[EId].startPointId()!=255 && CLevelManager::instance().levelPresent())
+		distFromStart = CEntityManager::instance()[EId].interpolator().currentPosition() - CLevelManager::getInstance().currentLevel().startPosition(CEntityManager::getInstance()[EId].startPointId());
 	float facing;
 	if(distFromStart.norm()>MinDistFromStartPointToMove || openClose)
 	{
-		facing = rotLerp(Facing, (float)CEntityManager::getInstance()[EId].interpolator().facing(), (float)lpos);
+		facing = rotLerp(Facing, (float)CEntityManager::instance()[EId].interpolator().facing(), (float)lpos);
 	}
 	else
 	{
@@ -293,45 +307,41 @@ bool CCamera::updateRampe(float backDist,float height,float targetBackDist,float
 	rotMat.identity();
 	rotMat.rotateZ(Facing);
 
-//	if (_allowMouse == 2 || _allowMouse == 1)
-	{
-		rotMat.rotateZ(C3DTask::getInstance().mouseListener().MouseX);
+	rotMat.rotateZ(C3DTask::instance().mouseListener().MouseX);
 
-		static const float eps = 0.1f;
-		if (C3DTask::getInstance().mouseListener().MouseY < -(float)NLMISC::Pi/2.0f+eps)
-			C3DTask::getInstance().mouseListener().MouseY = -(float)NLMISC::Pi/2.0f+eps;
+	float mouseY = C3DTask::instance().mouseListener().MouseY;
 
-		if (C3DTask::getInstance().mouseListener().MouseY > (float)NLMISC::Pi/2.0f-eps)
-			C3DTask::getInstance().mouseListener().MouseY = (float)NLMISC::Pi/2.0f-eps;
+	static const float eps = 0.1f;
+	if (mouseY < -(float)NLMISC::Pi/2.0f+eps)
+		mouseY = -(float)NLMISC::Pi/2.0f+eps;
 
-		if (InverseMouse)
-			rotMat.rotateX(C3DTask::getInstance().mouseListener().MouseY);
-		else
-			rotMat.rotateX(-C3DTask::getInstance().mouseListener().MouseY);
-		
-		if (C3DTask::getInstance().mouseListener().MouseWheel < 0)
-			C3DTask::getInstance().mouseListener().MouseWheel = 0;
-		
-		//CVector zoomTans = -getMatrix()->getJ()*(float)(C3DTask::getInstance().mouseListener().MouseWheel)/2.0f;
-		//zoomTans.x = 0;
-		rotMatNoZoom = rotMat;
-		CVector zoomTans = CVector(0,(float)(C3DTask::getInstance().mouseListener().MouseWheel)/2.0f,0);
-		rotMat.translate(zoomTans);
+	if (mouseY > (float)NLMISC::Pi/2.0f-eps)
+		mouseY = (float)NLMISC::Pi/2.0f-eps;
 
-		float minMouseAngleToDisplayPart = 0.35f;
-		bool displayParticle = fabs(C3DTask::getInstance().mouseListener().MouseX)>minMouseAngleToDisplayPart || C3DTask::getInstance().mouseListener().MouseY<-0.53f ||  C3DTask::getInstance().mouseListener().MouseY>0.4f || C3DTask::getInstance().mouseListener().MouseWheel>4;
-	}
+	rotMat.rotateX(mouseY);
+
+	if (C3DTask::instance().mouseListener().MouseWheel < 0)
+		C3DTask::instance().mouseListener().MouseWheel = 0;
+
+	//CVector zoomTans = -getMatrix()->getJ()*(float)(C3DTask::instance().mouseListener().MouseWheel)/2.0f;
+	//zoomTans.x = 0;
+	rotMatNoZoom = rotMat;
+	CVector zoomTans = CVector(0,(float)(C3DTask::instance().mouseListener().MouseWheel)/2.0f,0);
+	rotMat.translate(zoomTans);
+
+	float minMouseAngleToDisplayPart = 0.35f;
+	bool displayParticle = fabs(C3DTask::getInstance().mouseListener().MouseX)>minMouseAngleToDisplayPart || C3DTask::getInstance().mouseListener().MouseY<-0.53f ||  C3DTask::getInstance().mouseListener().MouseY>0.4f || C3DTask::getInstance().mouseListener().MouseWheel>4;
 	
-	Position = CEntityManager::getInstance()[EId].interpolator().currentPosition() + CurrentHeight * CVector(0,0,1) + CurrentBackDist * (rotMatNoZoom * CVector(0,1,0));
-	CurrentLookAt = CEntityManager::getInstance()[EId].interpolator().currentPosition() + CurrentTargetHeight * CVector(0,0,1)  + CurrentTargetBackDist * (rotMatNoZoom * CVector(0,1,0));
+	Position = CEntityManager::instance()[EId].interpolator().currentPosition() + CurrentHeight * CVector(0,0,1) + CurrentBackDist * (rotMatNoZoom * CVector(0,1,0));
+	CurrentLookAt = CEntityManager::instance()[EId].interpolator().currentPosition() + CurrentTargetHeight * CVector(0,0,1)  + CurrentTargetBackDist * (rotMatNoZoom * CVector(0,1,0));
 	CVector up(0.0f, 0.0f, 1.0f);
 	if((CurrentLookAt) !=up)
 		lookAt(MatrixFollowNoZoom, Position, CurrentLookAt, up);
 	else
 		lookAt(MatrixFollowNoZoom, Position, CurrentLookAt + CVector(0,0.00001f, 0), up);
 
-	Position = CEntityManager::getInstance()[EId].interpolator().currentPosition() + CurrentHeight * CVector(0,0,1) + CurrentBackDist * (rotMat * CVector(0,1,0));
-	CurrentLookAt = CEntityManager::getInstance()[EId].interpolator().currentPosition() + CurrentTargetHeight * CVector(0,0,1)  + CurrentTargetBackDist * (rotMat * CVector(0,1,0));
+	Position = CEntityManager::instance()[EId].interpolator().currentPosition() + CurrentHeight * CVector(0,0,1) + CurrentBackDist * (rotMat * CVector(0,1,0));
+	CurrentLookAt = CEntityManager::instance()[EId].interpolator().currentPosition() + CurrentTargetHeight * CVector(0,0,1)  + CurrentTargetBackDist * (rotMat * CVector(0,1,0));
 	return res;
 }
 

@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -25,17 +26,16 @@
 #include "stdpch.h"
 
 #ifdef NL_OS_WINDOWS
+#	define NOMINMAX
 #	include <windows.h>
 #	include "../resource.h"
-#	undef min
-#	undef max
 	extern HINSTANCE ghInstance;
 #endif
 
-#include <3d/mesh.h>
-#include <3d/shape.h>
-#include <3d/material.h>
-#include <3d/register_3d.h>
+#include <nel/3d/mesh.h>
+#include <nel/3d/shape.h>
+#include <nel/3d/material.h>
+#include <nel/3d/register_3d.h>
 
 #include "gui.h"
 #include "3d_task.h"
@@ -65,6 +65,35 @@ using namespace NLMISC;
 //
 // Functions
 //
+
+void exitFunction()
+{
+	//exit(0);
+	CTaskManager::instance().exit();
+
+/*	if(FullVersion || FastExit)
+	{
+		exit(0);
+	}
+	else
+	{
+		CGameTask::instance().remove();
+		CChatTask::instance().remove();
+		CSkyTask::instance().remove();
+		CHudTask::instance().remove();
+		CWaterTask::instance().remove();
+		CMtpTarget::instance().remove();
+		CLensFlareTask::instance().remove();
+		CEntityManager::instance().remove();
+		CExternalCameraTask::instance().remove();
+		CLevelManager::instance().remove();
+		CScoreTask::instance().remove();
+		CGuiTask::instance().remove();
+		CNetworkTask::instance().remove();
+
+		CTaskManager::instance().add(CEndTask::instance(), 60);
+	}*/
+}
 
 class CInterfaceListener : public IEventListener
 {
@@ -116,8 +145,8 @@ static CInterfaceListener InterfaceListener;
 
 void C3DTask::init()
 {
-	ScreenWidth = CConfigFileTask::getInstance().configFile().getVar("ScreenWidth").asInt();
-	ScreenHeight = CConfigFileTask::getInstance().configFile().getVar("ScreenHeight").asInt();
+	ScreenWidth = CConfigFileTask::instance().configFile().getVar("ScreenWidth").asInt();
+	ScreenHeight = CConfigFileTask::instance().configFile().getVar("ScreenHeight").asInt();
 
 	EnableExternalCamera = false;
 
@@ -135,50 +164,71 @@ void C3DTask::init()
 #ifdef NL_OS_WINDOWS
 	icon = (uint)LoadIcon(ghInstance,MAKEINTRESOURCE(IDI_ICON1));
 #endif
-	bool useD3D = CConfigFileTask::getInstance().configFile().getVar("OpenGL").asInt()==0;
-#ifdef NL_INDEX_BUFFER_H //new 3d
-	Driver = UDriver::createDriver(icon,useD3D);
-#else
-	Driver = UDriver::createDriver(icon);
-#endif
+	bool useD3D = !CConfigFileTask::instance().configFile().getVar("OpenGL").asBool();
+	Driver = UDriver::createDriver(icon, useD3D, exitFunction);
 	nlassert(Driver);
 
+	if(CConfigFileTask::instance().configFile().getVar("VSync").asInt() == 0)
+		Driver->setSwapVBLInterval(0);
+
+	if(CConfigFileTask::instance().configFile().getVar("NativeFragmentProgramsOnly").asInt() == 0)
+		Driver->forceNativeFragmentPrograms(false);
+
+#ifdef NL_OS_WINDOWS
+	Fullscreen = CConfigFileTask::instance().configFile().getVar("Fullscreen").asInt()==1;
+#else
+	// no fullscreen on linux
+	Fullscreen = false;
+#endif
+
+	uint8 aa = (CConfigFileTask::instance().configFile().getVar("AntiAlias").asInt()==1)?2:-1;
 
 	bool displayOk = false;
-	
+	std::string reason;
 	try
 	{
-		displayOk = Driver->setDisplay (UDriver::CMode(ScreenWidth, ScreenHeight, CConfigFileTask::getInstance().configFile().getVar("ScreenDepth").asInt(), CConfigFileTask::getInstance().configFile().getVar("Fullscreen").asInt()==0, CConfigFileTask::getInstance().configFile().getVar("ScreenFrequency").asInt()));
+		displayOk = Driver->setDisplay (UDriver::CMode(ScreenWidth, ScreenHeight, CConfigFileTask::instance().configFile().getVar("ScreenDepth").asInt(), !Fullscreen, CConfigFileTask::instance().configFile().getVar("ScreenFrequency").asInt(), aa), true, false);
 	}
-	catch (EBadDisplay e) 
+	catch (EBadDisplay &e)
 	{
-		nlwarning ("Can't set display mode %d %d %d %d %d", ScreenWidth, ScreenHeight, CConfigFileTask::getInstance().configFile().getVar("ScreenDepth").asInt(), CConfigFileTask::getInstance().configFile().getVar("Fullscreen").asInt(), CConfigFileTask::getInstance().configFile().getVar("ScreenFrequency").asInt());
-		nlwarning ("%s",e.what());
-#ifdef NL_OS_WINDOWS
-		MessageBox (NULL, toString("Please, update your video card drivers\n reason : %s",e.what()).c_str(), "Drivers", MB_OK);
-#endif
-		exit(1);
+		displayOk = false;
+		reason = e.what();
 	}
 
 	// Create the window with config file values
 	if (!displayOk)
 	{
-		nlwarning ("Can't set display mode %d %d %d %d %d", ScreenWidth, ScreenHeight, CConfigFileTask::getInstance().configFile().getVar("ScreenDepth").asInt(), CConfigFileTask::getInstance().configFile().getVar("Fullscreen").asInt(), CConfigFileTask::getInstance().configFile().getVar("ScreenFrequency").asInt());
+		nlwarning ("Can't set display mode %dx%d %dbpp %dHz %d", ScreenWidth, ScreenHeight, CConfigFileTask::instance().configFile().getVar("ScreenDepth").asInt(), CConfigFileTask::instance().configFile().getVar("ScreenFrequency").asInt(), !Fullscreen);
+		if(!reason.empty()) nlwarning ("Reason: %s", reason.c_str());
 
-		std::vector<UDriver::CMode> modes;
+		std::string OS, Proc, Mem, Gfx, Gfx2;
+		OS = CSystemInfo::getOS().c_str();
+		Proc = CSystemInfo::getProc().c_str();
+		Mem = toString(CSystemInfo::availablePhysicalMemory()) + " | " + toString(CSystemInfo::totalPhysicalMemory());
+		Gfx = Driver->getDriverInformation();
+		Gfx2 = Driver->getVideocardInformation();
+		nlinfo("OS: %s", OS.c_str());
+		nlinfo("PROC: %s", Proc.c_str());
+		nlinfo("MEM: %s", Mem.c_str());
+		nlinfo("GFX DRIVER: %s", Gfx.c_str());
+		nlinfo("GFX CARD: %s", Gfx2.c_str());
+
+		vector<UDriver::CMode> modes;
 		bool res = Driver->getModes(modes);
 		std::vector<UDriver::CMode>::iterator it;
-		nlinfo("available video mode : ");
-		if(modes.size()==0)
-			nlinfo("none available");
-		
+		nlinfo("Available video mode: ");
+		if(modes.size()==0) nlinfo("   no video mode...");
+
 		for(it=modes.begin();it!=modes.end();it++)
 		{
 			UDriver::CMode m = *it;
-			nlinfo("%d %d %d %dHz %s",m.Width,m.Height,m.Depth,m.Frequency,m.Windowed?"windowed":"fullscreen");
+			nlinfo("   > %dx%d %dbpp %dHz %s",m.Width,m.Height,m.Depth,m.Frequency,m.Windowed?"windowed":"fullscreen");
 		}
-		
-		return;
+
+#ifdef NL_OS_WINDOWS
+		MessageBoxA (NULL, "Your graphic card is not supported by Tux Target.\r\n\r\nTry to update your driver.\r\nIf you have modified tux_target.cfg, be sure the resolution is ok. Or post a message on the forum.", "Error", MB_OK);
+#endif
+		exit(EXIT_FAILURE);
 	}
 
 	Driver->EventServer.addListener (EventCharId, &InterfaceListener);
@@ -199,13 +249,14 @@ void C3DTask::init()
 	}
 
 	//Scene->getCam()->setFrustum(0.26f, 0.2f, 0.1f, 40.0f);
-	Scene->getCam().setPerspective(degToRad(CConfigFileTask::getInstance().configFile().getVar("Fov").asFloat()), 1.33f, 1.0f*GScale, 30000.0f*GScale);
+	Scene->getCam().setPerspective(degToRad(CConfigFileTask::instance().configFile().getVar("Fov").asFloat()), 1.33f, 1.0f*GScale, 30000.0f*GScale);
 	Scene->getCam().setTransformMode(UTransformable::DirectMatrix);
 
 	MouseListener = new C3dMouseListener();
 	MouseListener->init();
+	MouseListener->addToServer(driver().EventServer);
 	//CaptureCursor = false;
-	
+
 	Scene->enableLightingSystem(true);
 	Scene->setSunAmbient(AmbientColor);
 	Scene->setSunDiffuse(CRGBA(255,255,255));
@@ -230,25 +281,22 @@ void C3DTask::init()
 			LevelParticle.setOrderingLayer(2);
 		}
 	}
-	
-#ifdef NL_OS_WINDOWS
-	HWND hWnd = (HWND )Driver->getDisplay();
-	SetWindowText(hWnd,"Mtp Target");
-#endif
+
+	// TODO MTR find ReleaseVersion
+//	Driver->setWindowTitle("Mtp Target "+ReleaseVersion);
 }
 
 void C3DTask::update()
 {
 	if(!Driver->isActive())
-		CTaskManager::getInstance().exit();
-		//exit(0);
-	Scene->animate(CTimeTask::getInstance().time());
-	Driver->EventServer.pump();
+		exitFunction();
+	if(kbPressed(KeyESCAPE))
+		exitFunction();
 
-	if(C3DTask::getInstance().kbPressed(KeyF1))
-	{
-		CTaskManager::getInstance().switchBench();
-	}
+	Scene->animate(CTimeTask::instance().time());
+	Driver->EventServer.pump(true);
+	if(kbDown(KeySHIFT) && kbPressed(KeyF1))
+		CTaskManager::instance().switchBench();
 }
 
 void C3DTask::takeScreenShot()
@@ -338,14 +386,9 @@ void C3DTask::clear()
 	Driver->clearBuffers (ClearColor);
 }
 
-void C3DTask::clearColor(CRGBA color)
-{
-	ClearColor = color;
-}
-
 void C3DTask::captureCursor(bool b)
 {
-	CGuiObjectManager::getInstance().mouseListener().captureCursor(b);
+	CGuiObjectManager::instance().mouseListener().captureCursor(b);
 	/*
 	CaptureCursor = b;
 	if(b)
@@ -365,7 +408,7 @@ void C3DTask::captureCursor(bool b)
 
 NL3D::UMaterial C3DTask::createMaterial() const
 {
-	nlassert(Driver); 
+	nlassert(Driver);
 	UMaterial m = driver().createMaterial();
 	m.initUnlit();
 	return m;

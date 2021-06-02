@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -32,8 +33,8 @@
 
 #include <nel/3d/u_instance_material.h>
 
-#include "3d/water_height_map.h"
-#include "3d/water_pool_manager.h"
+#include <nel/3d/water_height_map.h>
+#include <nel/3d/water_pool_manager.h>
 
 #include "global.h"
 #include "entity.h"
@@ -49,8 +50,8 @@
 
 #include <nel/3d/u_instance_material.h>
 
-#include "3d/water_height_map.h"
-#include "3d/water_pool_manager.h"
+#include <nel/3d/water_height_map.h>
+#include <nel/3d/water_pool_manager.h>
 
 #include "entity.h"
 #include "global.h"
@@ -67,7 +68,19 @@ using namespace std;
 using namespace NLMISC;
 using namespace NL3D;
 
+void CEntity::playSound(CSoundManager::TSound SoundID)
+{
+	//TODO: is there any?
+	for(std::list<EntitySource*>::iterator it = Channels.begin(); it != Channels.end(); it++)
+	{
+//		if (*it.SoundID=SoundID)
+//			return;
+	}
 
+	EntitySource *eSource = CSoundManager::getInstance().playSound(SoundID);
+	if (0!=eSource)
+		Channels.push_back(eSource);
+}
 
 CEntity::CEntity()
 {
@@ -94,6 +107,19 @@ CEntity::CEntity()
 	OriginalColor = CRGBA(255,255,255,255);
 }
 
+CEntity::~CEntity()
+{
+		delete Interpolator;
+		Interpolator = 0;
+
+		for(std::list<EntitySource*>::iterator it=Channels.begin(); it!=Channels.end(); it++)
+		{
+			delete *it;
+		}
+
+		Channels.clear();
+}
+
 void CEntity::swapOpenClose()
 {
 	OpenClose = !OpenClose;
@@ -106,8 +132,10 @@ void CEntity::swapOpenClose()
 			CloseMesh.hide();
 		if(!OpenMesh.empty())
 			OpenMesh.show();
-		SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::BallOpen);
-		SoundsDescriptor.stop(CSoundManager::CEntitySoundsDescriptor::BallClose);
+
+		playSound(CSoundManager::BallOpen);
+		//SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::BallOpen);
+		//SoundsDescriptor.stop(CSoundManager::CEntitySoundsDescriptor::BallClose);
 	}
 	else
 	{
@@ -117,8 +145,10 @@ void CEntity::swapOpenClose()
 			CloseMesh.show();
 		if(!OpenMesh.empty())
 			OpenMesh.hide();
-		SoundsDescriptor.stop(CSoundManager::CEntitySoundsDescriptor::BallOpen);
-		SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::BallClose);
+
+		playSound(CSoundManager::BallClose);
+		//SoundsDescriptor.stop(CSoundManager::CEntitySoundsDescriptor::BallOpen);
+		//SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::BallClose);
 	}
 
 	if(!OpenClose)
@@ -191,7 +221,28 @@ void CEntity::update()
 */
 	}
 
-	SoundsDescriptor.update3d(interpolator().getMatrix().getPos(), CVector(0,0,0)); // todo : velocity
+//	SoundsDescriptor.update3d(interpolator().getMatrix().getPos(), CVector(0,0,0)); // todo : velocity
+
+	for(std::list<EntitySource*>::iterator it = Channels.begin(); it != Channels.end(); )
+	{
+		if((*it)->source->isPlaying() || (*it)->start)
+		{
+			(*it)->source->setPos(interpolator().getMatrix().getPos() /*/ GScale*/);
+
+			if((*it)->start)
+			{
+				(*it)->start=false;
+				(*it)->source->play();
+			}
+			it++;
+		}
+		else
+		{
+			std::list<EntitySource*>::iterator cur = it++;
+			delete *cur;
+			Channels.erase(cur);
+		}
+	}
 
 	if(!ImpactParticle.empty())
 	{
@@ -202,7 +253,8 @@ void CEntity::update()
 	{
 		if(isLocal())
 		{
-			SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::Impact);
+			playSound(CSoundManager::Impact);
+			//SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::Impact);
 			CHudTask::getInstance().addMessage(CHudMessage(0,15,1,string("don't touch anything when you fly"),CRGBA(255,255,0,255),5));
 		}
 		if(!ImpactParticle.empty())
@@ -258,7 +310,8 @@ void CEntity::collisionWithWater(bool col)
 	if(col && !interpolator().currentOnWater())
 	{
 		// launch the splatch sound
-		SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::Splash);
+		playSound(CSoundManager::Splash);
+		//SoundsDescriptor.play(CSoundManager::CEntitySoundsDescriptor::Splash);
 
 /*
 		CWaterHeightMap &whm = GetWaterPoolManager().getPoolByID(0);
@@ -357,7 +410,7 @@ void CEntity::reset()
 		//C3DTask::getInstance().scene().deleteInstance(OpenMesh);
 	}
 
-	CSoundManager::getInstance().unregisterEntity(SoundsDescriptor);
+	//CSoundManager::getInstance().unregisterEntity(SoundsDescriptor);
 
 	Type = Unknown;
 	Name.clear();
@@ -427,7 +480,7 @@ void CEntity::init(TEntity type, const std::string &name, sint32 totalScore, CRG
 	this->totalScore(totalScore);
 	
 	//nlinfo("CEntity::init() , texture=%s",Texture.c_str());
-	CSoundManager::getInstance().registerEntity(SoundsDescriptor);
+	//CSoundManager::getInstance().registerEntity(SoundsDescriptor);
 }
 
 void CEntity::luaInit()
@@ -645,3 +698,4 @@ void CEntity::collideWhenFly(CVector &pos)
 	showCollideWhenFlyPos = pos;
 	showCollideWhenFly = true;
 }
+

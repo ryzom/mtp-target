@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -32,17 +33,17 @@
 #include <nel/3d/u_cloud_scape.h>
 #include <nel/3d/u_text_context.h>
 
-#include "3d/nelu.h"
-#include "3d/scene.h"
+#include <nel/3d/nelu.h>
+#include <nel/3d/scene.h>
 #include "time_task.h"
-#include "3d/scene_user.h"
-#include "3d/water_model.h"
-#include "3d/water_shape.h"
-#include "3d/texture_file.h"
-#include "3d/texture_blend.h"
-#include "3d/transform_shape.h"
-#include "3d/water_height_map.h"
-#include "3d/water_pool_manager.h"
+#include <nel/3d/scene_user.h>
+#include <nel/3d/water_model.h>
+#include <nel/3d/water_shape.h>
+#include <nel/3d/texture_file.h>
+#include <nel/3d/texture_blend.h>
+#include <nel/3d/transform_shape.h>
+#include <nel/3d/water_height_map.h>
+#include <nel/3d/water_pool_manager.h>
 
 #include "3d_task.h"
 #include "time_task.h"

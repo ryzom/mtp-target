@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -25,13 +26,13 @@
 #ifndef MTPT_ENTITY
 #define MTPT_ENTITY
 
-
 //
 // Includes
 //
 
 #include <deque>
 #include <string>
+#include <list>
 
 #include <nel/misc/vector.h>
 #include <nel/misc/matrix.h>
@@ -40,21 +41,6 @@
 #include <nel/3d/u_particle_system_instance.h>
 
 #include "global.h"
-
-
-//
-// Includes
-//
-
-#include <deque>
-#include <string>
-
-#include <nel/misc/vector.h>
-#include <nel/misc/matrix.h>
-
-#include <nel/3d/u_instance.h>
-#include <nel/3d/u_particle_system_instance.h>
-
 #include "sound_manager.h"
 #include "interpolator.h"
 #include "entity_lua_proxy.h"
@@ -172,7 +158,7 @@ private:
 	
 	// private ctor because only CEntityManager can create a CEntity
 	CEntity();
-	virtual ~CEntity() { delete Interpolator; Interpolator = 0; }
+	virtual ~CEntity();
 
 	void reset();
 	void sessionReset();
@@ -187,9 +173,10 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // old stuff to clean
 
+	std::list<EntitySource*> Channels;
+	void playSound(CSoundManager::TSound SoundID);
 
-
-	CSoundManager::CEntitySoundsDescriptor	SoundsDescriptor;
+//	CSoundManager::CEntitySoundsDescriptor	SoundsDescriptor;
 
 	sint	ParticuleOpenActivated;
 	sint	ParticuleCloseActivated;

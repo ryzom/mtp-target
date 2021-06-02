@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -59,7 +60,7 @@ using namespace NLNET;
 // Functions
 //
 
-static void refuseShard(uint16 sid, const char *format, ...)
+static void refuseShard(TServiceId sid, const char *format, ...)
 {
 	string reason;
 	NLMISC_CONVERT_VARGS(reason, format, NLMISC::MaxCStringSize);
@@ -69,7 +70,7 @@ static void refuseShard(uint16 sid, const char *format, ...)
 	CUnifiedNetwork::getInstance()->send(sid, msgout);
 }
 
-static void cbWSConnection(const std::string &serviceName, uint16 sid, void *arg)
+static void cbWSConnection(const std::string &serviceName, TServiceId sid, void *arg)
 {
 	TSockId from;
 	CCallbackNetBase *cnb = CUnifiedNetwork::getInstance ()->getNetBase (sid, from);
@@ -78,7 +79,7 @@ static void cbWSConnection(const std::string &serviceName, uint16 sid, void *arg
 	nldebug("new potential shard: %s", ia.asString ().c_str ());
 
 	//TODO  HACK to keep only the offical server
-	return;
+	//return;
 	
 	// if we accept external shard, don't need to check if address is valid
 	if(IService::getInstance ()->ConfigFile.getVar("AcceptExternalShards").asInt () == 1)
@@ -101,7 +102,7 @@ static void cbWSConnection(const std::string &serviceName, uint16 sid, void *arg
 	}
 }
 
-static void cbWSDisconnection (const std::string &serviceName, uint16 sid, void *arg)
+static void cbWSDisconnection (const std::string &serviceName, TServiceId sid, void *arg)
 {
 	TSockId from;
 	CCallbackNetBase *cnb = CUnifiedNetwork::getInstance()->getNetBase(sid, from);
@@ -134,7 +135,7 @@ static void cbWSDisconnection (const std::string &serviceName, uint16 sid, void 
 }
 
 // 
-static void cbWSIdentification (CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbWSIdentification (CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	TSockId from;
 	CCallbackNetBase *cnb = CUnifiedNetwork::getInstance ()->getNetBase (sid, from);
@@ -188,8 +189,22 @@ static void cbWSIdentification (CMessage &msgin, const std::string &serviceName,
 
 		if(row[4] == string("Online"))
 		{
-			// the shard is already online, disconnect the old one and set the new one
-			refuseShard(atoi(row[5]), "A new shard connects with the same IP/ShardId, you were replaced");
+			//TODO MTR We have to change the way LS does this, look at NeLNS standard.
+			const std::vector<TServiceId> &sidlist = CUnifiedNetwork::getInstance()->getConnectionList();
+			std::vector<TServiceId>::const_iterator itr = sidlist.begin();
+			bool fSvc=false;
+			while(itr != sidlist.end()) {
+				TServiceId sid2 = (*itr);
+				if(sid2.get() == (uint16)atoi(row[5])) {
+					// the shard is already online, disconnect the old one and set the new one
+					refuseShard(sid2, "A new shard connects with the same IP/ShardId, you were replaced");
+					fSvc=true;
+				}
+			}
+			if(!fSvc)
+				nlwarning("Unable to find sid %d in unified network connection list!", (uint16)atoi(row[5]));
+			
+			// TODO MTR: figure out how to look up TServiceId by uint16
 		}
 		else
 		{
@@ -229,7 +244,7 @@ static void cbWSIdentification (CMessage &msgin, const std::string &serviceName,
 	nlstop;
 }
 
-static void cbWSClientConnected (CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbWSClientConnected(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	//
 	// S16: Receive "CC" message from WS
@@ -312,7 +327,7 @@ static void cbWSClientConnected (CMessage &msgin, const std::string &serviceName
 	}
 }
 
-static void cbWSShardChooseShard(CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbWSShardChooseShard(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	//
 	// S10: receive "SCS" message from WS
@@ -352,7 +367,7 @@ static void cbWSShardChooseShard(CMessage &msgin, const std::string &serviceName
 	sendToClient(msgout, (TSockId)lc.getUserAddr());
 }
 
-static void cbScoreUpdate(CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbScoreUpdate(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	string reason;
 	CMysqlResult result;
@@ -393,7 +408,7 @@ static void cbScoreUpdate(CMessage &msgin, const std::string &serviceName, uint1
 	}
 }
 
-static void cbBanClient(CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbBanClient(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	string reason;
 	CMysqlResult result;
@@ -420,7 +435,7 @@ static void cbBanClient(CMessage &msgin, const std::string &serviceName, uint16 
 	sqlQuery(request, nbrow, row, result);
 }
 
-static void cbKickClient(CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbKickClient(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	string reason;
 	CMysqlResult result;
@@ -438,7 +453,7 @@ static void cbKickClient(CMessage &msgin, const std::string &serviceName, uint16
 	sqlQuery(request, nbrow, row, result);
 }
 
-static void cbReportClient(CMessage &msgin, const std::string &serviceName, uint16 sid)
+static void cbReportClient(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	string reason;
 	CMysqlResult result;

@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -28,18 +29,18 @@
 #include <nel/misc/file.h>
 #include <nel/misc/path.h>
 
-#include <3d/mesh.h>
-#include <3d/shape.h>
-#include <3d/texture.h>
-#include <3d/material.h>
-#include <3d/shape_bank.h>
-#include <3d/driver_user.h>
-#include <3d/register_3d.h>
-#include <3d/texture_file.h>
-#include <3d/texture_multi_file.h>
+#include <nel/3d/mesh.h>
+#include <nel/3d/shape.h>
+#include <nel/3d/texture.h>
+#include <nel/3d/material.h>
+#include <nel/3d/shape_bank.h>
+#include <nel/3d/driver_user.h>
+#include <nel/3d/register_3d.h>
+#include <nel/3d/texture_file.h>
+#include <nel/3d/texture_multi_file.h>
 #include <nel/3d/u_particle_system_instance.h>
-#include <3d/particle_system.h>
-#include <3d/particle_system_shape.h>
+#include <nel/3d/particle_system.h>
+#include <nel/3d/particle_system_shape.h>
 
 #include "zlib.h"
 
@@ -87,7 +88,7 @@ void CResourceManagerLan::init()
 	}
 
 	CConfigFile::CVar &v = CConfigFileTask::getInstance().configFile().getVar("Path");
-	for (int i = 0; i < v.size(); i++)
+	for (uint i = 0; i < v.size(); i++)
 		CPath::addSearchPath (v.asString(i), true, false);
 
 	CRCCheckTimes.clear();
@@ -345,7 +346,7 @@ string CResourceManagerLan::get(const string &filename, bool &ok)
 				if(tid==TaskManagerThreadId)
 				{
 					while(waitNetworkMessage(CRCReceived,messageReceived) && !CMtpTarget::getInstance().error())
-						checkTaskManagerPaused();
+						;
 				}
 				else
 					while(waitNetworkMessage(CRCReceived,messageReceived) && !CMtpTarget::getInstance().error());
@@ -427,7 +428,7 @@ string CResourceManagerLan::get(const string &filename, bool &ok)
 		if(tid==TaskManagerThreadId)
 		{
 			while(waitNetworkMessage(Received,messageReceived))
-				checkTaskManagerPaused();
+				;
 		}
 		else
 			while(waitNetworkMessage(Received,messageReceived));

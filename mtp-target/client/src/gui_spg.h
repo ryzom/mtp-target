@@ -1,23 +1,24 @@
-/* Copyright, 2003 Melting Pot
- *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+// This file is part of Mtp Target.
+// Copyright (C) 2008 Vialek
+// 
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+// 
+// Vianney Lecroart - gpl@vialek.com
 
- * MTP Target is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA 02111-1307, USA.
- */
-#ifndef MTPT_GUI_SPG_H
-#define MTPT_GUI_SPG_H
+#ifndef MT_GUI_SPG_H
+#define MT_GUI_SPG_H
 
 class guiSPGCounter
 {
@@ -40,7 +41,7 @@ typedef std::map<void *,guiSPGCounter *> pointer2Counter;
 class guiSPGManager
 {
 public:
-	static guiSPGManager &getInstance();
+	static guiSPGManager &instance();
 	guiSPGCounter *get(void *p);
 	void add(void *p,guiSPGCounter *counter);
 	void remove(void *p);
@@ -54,7 +55,7 @@ private:
 namespace guiSmartPointer
 {
 
-// Smart pointer wraper class that implements reference counting 
+// Smart pointer wrapper class that implements reference counting 
 template <class T> class guiSPG
 {
 private:
@@ -82,7 +83,7 @@ public:
 	//!constructor
 	guiSPG() : counter(0),p(0) {};
 	//!constructor
-	guiSPG( T* p_ )  { if(p_) counter=guiSPGManager::getInstance().get(p_); p=p_; counter->addRef();};
+	guiSPG( T* p_ )  { if(p_) counter=guiSPGManager::instance().get(p_); p=p_; counter->addRef();};
 	//!Copy constructor.
 	template <class U> guiSPG<T>(const guiSPG<U>& sp_ ) {
 		if(sp_.counter)
@@ -123,7 +124,7 @@ public:
 		release();
 		if (newp.counter)
 		{
-			p = newp.p; //this line provide a compile-time convertion check (inheritance check)
+			p = newp.p; //this line provide a compile-time conversion check (inheritance check)
 			counter = (guiSPGCounter *) newp.counter;
 			addRef();
 		}
@@ -162,7 +163,7 @@ public:
 		release();
 		if(newp)
 		{
-			counter = guiSPGManager::getInstance().get(newp);
+			counter = guiSPGManager::instance().get(newp);
 			counter->addRef();
 		}
 		p = newp;
@@ -196,7 +197,7 @@ public:
 	//!Misc compare functions.
 	bool operator > ( const guiSPG<T> &p1 ) const { return p > p1.p; };
 	//!Misc compare functions.
-#ifdef NL_OS_WINDOWS
+
 	friend bool operator == ( T *p, const guiSPG<T> &p1 );
 	//!Misc compare functions.
 	friend bool operator == ( const guiSPG<T> &p1,const int null );
@@ -206,17 +207,6 @@ public:
 	friend bool operator == ( const int null,const guiSPG<T> &p1 );
 	//!Misc compare functions.
 	friend bool operator != ( const int null,const guiSPG<T> &p1 );
-#else
-	friend bool operator == <> ( T *p, const guiSPG<T> &p1 );
-	//!Misc compare functions.
-	friend bool operator == <> ( const guiSPG<T> &p1,const int null );
-	//!Misc compare functions.
-	friend bool operator != <> ( const guiSPG<T> &p1,const int null );
-	//!Misc compare functions.
-	friend bool operator == <> ( const int null,const guiSPG<T> &p1 );
-	//!Misc compare functions.
-	friend bool operator != <> ( const int null,const guiSPG<T> &p1 );
-#endif
 };
 
 template <class T>
@@ -243,15 +233,10 @@ template <class T>
 inline bool operator != ( const int null,const guiSPG<T> &p1 )	{
 	return p1.p!=0;
 }
-
 	
-}//namespace guiSmartPointer
+} //namespace guiSmartPointer
 
 // Pretend the hack namespace doesn't exist to clients
 using namespace guiSmartPointer;
 
-
-
-
-#endif //MTPT_GUI_SPG_H
-
+#endif

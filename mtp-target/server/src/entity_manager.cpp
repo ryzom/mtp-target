@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -137,13 +138,13 @@ void CEntityManager::remove(uint8 eid)
 			FILE *fp = fopen("connection.stat", "ab");
 			if(fp)
 			{
-				fprintf(fp, "%u %s - '%s' '%s'\n", ltime, d, c->name().c_str(),CLevelManager::getInstance().haveCurrentLevel()?CLevelManager::getInstance().currentLevel().name().c_str():"");
+				fprintf(fp, "%u %s - '%s' '%s'\n", (uint)ltime, d, c->name().c_str(),CLevelManager::getInstance().haveCurrentLevel()?CLevelManager::getInstance().currentLevel().name().c_str():"");
 				fclose(fp);
 			}
 			fp = fopen("clients_count.stat", "ab");
 			if(fp)
 			{
-				fprintf(fp, "%u %s c %d\n", ltime, d, humanClientCount());
+				fprintf(fp, "%u %s c %d\n", (uint)ltime, d, humanClientCount());
 				fclose(fp);
 			}
 
@@ -916,182 +917,182 @@ NLMISC_COMMAND(displayentities, "display info about all entities", "")
 	return true;
 }
 
-MTPT_COMMAND(playerlist, "switch user chat on/off", "[<eid>|<name>]")
-{
-	if(!entity)
-		return true;
-	string res = "";
-	for(CEntityManager::EntityConstIt it = CEntityManager::getInstance().entities().begin(); it != CEntityManager::getInstance().entities().end(); it++)
-	{
-		res += toString("%d#%s ",(*it)->id(),(*it)->name().c_str());
-		if(res.size()>100)
-		{
-			CNetwork::getInstance().sendChat(entity->id(),res);
-			res = "";
-		}
-	}
-	if(res.size())
-		CNetwork::getInstance().sendChat(entity->id(),res);
-	
-	return true;
-}
-
-MTPT_COMMAND(kick, "kick a user from the server", "[<eid>|<name>]")
-{
-	if(args.size() != 1) return false;
-	
-	nlinfo("kick %s", args[0].c_str());
-	
-	CEntity *e = getByString(args[0]);
-
-	if(e==NULL)
-		return true;
-
-	CClient *c = NULL;
-	if(e->type() == CEntity::Client)
-		c = (CClient *)e;
-
-	uint8 eid = e->id();
-	if(e->isAdmin() || e->isModerator())
-		return true;
-
-	if(c)
-	{
-		string reason = toString("You have been kicked !");
-		CNetMessage msgout(CNetMessage::Error);
-		msgout.serial(reason);
-		CNetwork::getInstance().send(eid, msgout);
-	}
-	
-	if(c)
-	{
-		CMessage msgout("KC");
-		const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
-		string ip = inetAddr.ipAddress();
-		string userName = c->name();
-		string kickerName = "server";
-		if(entity)
-			kickerName = entity->name();
-		string info = "";
-		for(uint i=1;i<args.size();i++)
-			info += " "+args[i];
-		
-		msgout.serial(ip, userName, kickerName, info);
-		
-		nlinfo("%s kick %s (%s) %s",kickerName.c_str(), userName.c_str(),ip.c_str(),info.c_str());
-		CUnifiedNetwork::getInstance()->send("LS", msgout);
-	}
-
-	CEntityManager::getInstance().remove(eid);
-	return true;
-}
-
-MTPT_COMMAND(mute, "switch user chat on/off", "[<eid>|<name>]")
-{
-	if(args.size() != 1) return false;
-	
-	nlinfo("mute %s", args[0].c_str());
-	
-	CEntity *e = getByString(args[0]);
-
-	if(e==NULL)
-		return true;
-
-	e->canSpeak(!e->canSpeak());
-	if(entity)
-		CNetwork::getInstance().sendChat(entity->id(),toString("%s chat is now %s",e->name().c_str(),e->canSpeak()?"on":"off"));
-	else
-		CNetwork::getInstance().tellToPublicChat(toString("%s chat is now %s",e->name().c_str(),e->canSpeak()?"on":"off"));
-	
-	return true;
-}
-
-MTPT_COMMAND(ban, "ban a user from the server", "[<eid>|<name>] [duration]")
-{
-	if(args.size() != 2 && args.size() != 1) return false;
-	
-	CEntity *e = getByString(args[0]);
-
-	if(e==NULL)
-		return true;
-
-	CClient *c = NULL;
-	if(e->type()==e->Client)
-		c = (CClient *)e;
-
-	if(c)
-	{
-		CMessage msgout("BC");
-
-		const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
-		string ip = inetAddr.ipAddress();
-		string userName = c->name();
-		string kickerName = "server";
-		if(entity)
-			kickerName = entity->name();
-		
-		uint32 duration = 10;
-		if(args.size() >= 2)
-			duration = atoi(args[1].c_str());
-		if(duration>60)
-			duration=60;
-
-		msgout.serial(ip, userName, kickerName, duration);
-		
-		nlinfo("%s bans %s (%s) %d",kickerName.c_str(), userName.c_str(),ip.c_str(),duration);
-		CUnifiedNetwork::getInstance()->send("LS", msgout);
-
-		string reason = "You have been banned";
-		CNetMessage msgout2(CNetMessage::Error);
-		msgout2.serial(reason);
-		CNetwork::getInstance().send(c->id(), msgout2);
-	}
-
-
-	CEntityManager::getInstance().remove(e->id());
-	
-	//TODO
-	
-	return true;
-}
-
-
-MTPT_COMMAND(report, "report a problematic user", "[<eid>|<name>] [comment]")
-{
-	if(args.size() < 1) return false;
-	
-	CEntity *e = getByString(args[0]);
-
-	if(e==NULL)
-		return true;
-
-	CClient *c = NULL;
-	if(e->type()!=e->Client)
-		return true;
-
-	c = (CClient *)e;
-
-	CMessage msgout("RC");
-
-	const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
-	string ip = inetAddr.ipAddress();
-	string userName = c->name();
-	string reporterName = "server";
-	if(entity)
-		reporterName = entity->name();
-	string info = "";
-	for(uint i=1;i<args.size();i++)
-		info += " "+args[i];
-	
-	msgout.serial(ip, userName, reporterName, info);
-	
-	nlinfo("%s report %s (%s) %s",reporterName.c_str(), userName.c_str(),ip.c_str(),info.c_str());
-	CUnifiedNetwork::getInstance()->send("LS", msgout);
-	
-	//TODO
-	
-	return true;
-}
+//MTPT_COMMAND(playerlist, "switch user chat on/off", "[<eid>|<name>]")
+//{
+//	if(!entity)
+//		return true;
+//	string res = "";
+//	for(CEntityManager::EntityConstIt it = CEntityManager::getInstance().entities().begin(); it != CEntityManager::getInstance().entities().end(); it++)
+//	{
+//		res += toString("%d#%s ",(*it)->id(),(*it)->name().c_str());
+//		if(res.size()>100)
+//		{
+//			CNetwork::getInstance().sendChat(entity->id(),res);
+//			res = "";
+//		}
+//	}
+//	if(res.size())
+//		CNetwork::getInstance().sendChat(entity->id(),res);
+//	
+//	return true;
+//}
+//
+//MTPT_COMMAND(kick, "kick a user from the server", "[<eid>|<name>]")
+//{
+//	if(args.size() != 1) return false;
+//	
+//	nlinfo("kick %s", args[0].c_str());
+//	
+//	CEntity *e = getByString(args[0]);
+//
+//	if(e==NULL)
+//		return true;
+//
+//	CClient *c = NULL;
+//	if(e->type() == CEntity::Client)
+//		c = (CClient *)e;
+//
+//	uint8 eid = e->id();
+//	if(e->isAdmin() || e->isModerator())
+//		return true;
+//
+//	if(c)
+//	{
+//		string reason = toString("You have been kicked !");
+//		CNetMessage msgout(CNetMessage::Error);
+//		msgout.serial(reason);
+//		CNetwork::getInstance().send(eid, msgout);
+//	}
+//	
+//	if(c)
+//	{
+//		CMessage msgout("KC");
+//		const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
+//		string ip = inetAddr.ipAddress();
+//		string userName = c->name();
+//		string kickerName = "server";
+//		if(entity)
+//			kickerName = entity->name();
+//		string info = "";
+//		for(uint i=1;i<args.size();i++)
+//			info += " "+args[i];
+//		
+//		msgout.serial(ip, userName, kickerName, info);
+//		
+//		nlinfo("%s kick %s (%s) %s",kickerName.c_str(), userName.c_str(),ip.c_str(),info.c_str());
+//		CUnifiedNetwork::getInstance()->send("LS", msgout);
+//	}
+//
+//	CEntityManager::getInstance().remove(eid);
+//	return true;
+//}
+//
+//MTPT_COMMAND(mute, "switch user chat on/off", "[<eid>|<name>]")
+//{
+//	if(args.size() != 1) return false;
+//	
+//	nlinfo("mute %s", args[0].c_str());
+//	
+//	CEntity *e = getByString(args[0]);
+//
+//	if(e==NULL)
+//		return true;
+//
+//	e->canSpeak(!e->canSpeak());
+//	if(entity)
+//		CNetwork::getInstance().sendChat(entity->id(),toString("%s chat is now %s",e->name().c_str(),e->canSpeak()?"on":"off"));
+//	else
+//		CNetwork::getInstance().tellToPublicChat(toString("%s chat is now %s",e->name().c_str(),e->canSpeak()?"on":"off"));
+//	
+//	return true;
+//}
+//
+//MTPT_COMMAND(ban, "ban a user from the server", "[<eid>|<name>] [duration]")
+//{
+//	if(args.size() != 2 && args.size() != 1) return false;
+//	
+//	CEntity *e = getByString(args[0]);
+//
+//	if(e==NULL)
+//		return true;
+//
+//	CClient *c = NULL;
+//	if(e->type()==e->Client)
+//		c = (CClient *)e;
+//
+//	if(c)
+//	{
+//		CMessage msgout("BC");
+//
+//		const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
+//		string ip = inetAddr.ipAddress();
+//		string userName = c->name();
+//		string kickerName = "server";
+//		if(entity)
+//			kickerName = entity->name();
+//		
+//		uint32 duration = 10;
+//		if(args.size() >= 2)
+//			duration = atoi(args[1].c_str());
+//		if(duration>60)
+//			duration=60;
+//
+//		msgout.serial(ip, userName, kickerName, duration);
+//		
+//		nlinfo("%s bans %s (%s) %d",kickerName.c_str(), userName.c_str(),ip.c_str(),duration);
+//		CUnifiedNetwork::getInstance()->send("LS", msgout);
+//
+//		string reason = "You have been banned";
+//		CNetMessage msgout2(CNetMessage::Error);
+//		msgout2.serial(reason);
+//		CNetwork::getInstance().send(c->id(), msgout2);
+//	}
+//
+//
+//	CEntityManager::getInstance().remove(e->id());
+//	
+//	//TODO
+//	
+//	return true;
+//}
+//
+//
+//MTPT_COMMAND(report, "report a problematic user", "[<eid>|<name>] [comment]")
+//{
+//	if(args.size() < 1) return false;
+//	
+//	CEntity *e = getByString(args[0]);
+//
+//	if(e==NULL)
+//		return true;
+//
+//	CClient *c = NULL;
+//	if(e->type()!=e->Client)
+//		return true;
+//
+//	c = (CClient *)e;
+//
+//	CMessage msgout("RC");
+//
+//	const CInetAddress inetAddr = CNetwork::getInstance().hostAddress(c->sock());
+//	string ip = inetAddr.ipAddress();
+//	string userName = c->name();
+//	string reporterName = "server";
+//	if(entity)
+//		reporterName = entity->name();
+//	string info = "";
+//	for(uint i=1;i<args.size();i++)
+//		info += " "+args[i];
+//	
+//	msgout.serial(ip, userName, reporterName, info);
+//	
+//	nlinfo("%s report %s (%s) %s",reporterName.c_str(), userName.c_str(),ip.c_str(),info.c_str());
+//	CUnifiedNetwork::getInstance()->send("LS", msgout);
+//	
+//	//TODO
+//	
+//	return true;
+//}
 
 
 NLMISC_COMMAND(watch, "watch a client", "[<eid>]")

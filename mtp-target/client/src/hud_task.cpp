@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -85,6 +86,7 @@ void CHudTask::render()
 	float ptdt = 1.0f;
 	bool displaySessionInfo = false;
 	float partTime = CMtpTarget::getInstance().timeBeforeSessionStart();
+	static uint32 oldPartTime = 0;
 	
 	if(CMtpTarget::getInstance().State == CMtpTarget::eStartSession)
 	{		
@@ -106,8 +108,15 @@ void CHudTask::render()
 			str = "Ready ?";
 		else if (partTime > 0.0f)
 		{
-			if (partTime > 4.8f) // don't play ready sound if it's too late
-				CSoundManager::getInstance().playGuiSound(CSoundManager::GuiReady);
+			uint32 newPartTime = uint32(partTime)+1;
+
+			if(oldPartTime != newPartTime)
+			{
+				oldPartTime = newPartTime;
+				//CSoundManager::instance().playSound(CSoundManager::TSound(CSoundManager::Ready0+newPartTime));
+				CSoundManager::instance().playGUISound ("ready" + toString("%u", newPartTime));
+			}
+
 			str = toString("%u", ((uint32) partTime)+1);
 			ptdt = partTime - (float)(sint)partTime;
 		}
@@ -118,6 +127,12 @@ void CHudTask::render()
 	{
 		if (partTime < 2.0f)
 		{
+			if(oldPartTime != 0)
+			{
+				oldPartTime = 0;
+				CSoundManager::instance().playGUISound ("ready0");
+			}
+
 			str = "Go";
 		}
 	}
@@ -323,16 +338,21 @@ void CHudTask::setDisplayViewedName(const string &name)
 	_viewedName = name;
 }
 
+void CHudTask::addSysMessage(const string &txt)
+{
+	CHudMessage msg(-1.0f, 0.0f, 1.0f, txt, CRGBA::White, 10.0);
+	addMessage(msg);
+}
+
 void CHudTask::addMessage(const CHudMessage &newm)
 {
 	list<CHudMessage>::iterator it;
-	list<CHudMessage>::iterator it2delete;
 	for(it=messages.begin();it!=messages.end();)
 	{
 		CHudMessage m = *it;
 		if(m.x == newm.x && m.y==newm.y)
 		{
-			it2delete = it;
+			list<CHudMessage>::iterator it2delete = it;
 			it++;
 			messages.erase(it2delete);
 		}

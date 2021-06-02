@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -53,13 +54,19 @@ CSynchronized<PauseFlags> taskManagerPauseFlags("taskManagerPauseFlags");
 void CTaskManager::switchBench()
 {
 	Benching = !Benching;
-	if(Benching) nlinfo("Starting benchmark...");
+	if(Benching)
+	{
+		nlinfo("Starting benchmark...");
+		CHTimer::clear();
+	}
 	else
 	{
 		nlinfo("End of benchmark");
-		CHTimer::display();
-		CHTimer::displayHierarchicalByExecutionPathSorted(InfoLog, CHTimer::TotalTime, true, 64);
-	}		
+		//CHTimer::display();
+		//CHTimer::displayHierarchicalByExecutionPathSorted(InfoLog, CHTimer::TotalTime, true, 64);
+		CHTimer::display(InfoLog, CHTimer::MaxSession);
+		CHTimer::displayHierarchicalByExecutionPathSorted(InfoLog, CHTimer::MaxSession, true, 64);
+	}
 }
 
 void CTaskManager::execute()
@@ -117,7 +124,6 @@ void CTaskManager::execute()
 				it2++;
 			}
 		}
-		checkTaskManagerPaused();
 
 		CHTimer::endBench();
 	}
@@ -127,19 +133,20 @@ void CTaskManager::execute()
 //		nlinfo("Release %s", (*it)->name().c_str());
 		(*it)->release();
 	}
+	Tasks.clear();
+	OrderSortedTasks.clear();
 }
 
 void CTaskManager::remove(ITask &task)
 {
-	nlinfo("Removing task %s", task.name().c_str());
+	//nlinfo("Removing task %s", task.name().c_str());
 	// release and remove task from Task
 	for(std::list<ITask*>::iterator it = Tasks.begin(); it != Tasks.end();)
 	{
 		if(&task == (*it))
 		{
-			std::list<ITask*>::iterator itr = it;
-			it++;
-			Tasks.remove(*itr);
+			Tasks.erase(it);
+			break;
 		}
 		else
 		{
@@ -151,22 +158,36 @@ void CTaskManager::remove(ITask &task)
 	{
 		if(&task == (*it))
 		{
-			std::list<ITask*>::iterator itr = it;
-			it++;
-			OrderSortedTasks.remove(*itr);
+			OrderSortedTasks.erase(it);
+			break;
 		}
 		else
 		{
 			it++;
 		}
 	}
-	nlinfo("Removed task %s from list", task.name().c_str());
+	//nlinfo("Removed task %s from list", task.name().c_str());
 	task.release();
-	nlinfo("Removed task %s and release called", task.name().c_str());
+	//nlinfo("Removed task %s and release called", task.name().c_str());
+}
+
+void CTaskManager::stopAll()
+{
+	nlinfo("Stopping all tasks");
+	for(list<ITask*>::iterator it = Tasks.begin(); it != Tasks.end(); it++)
+	{
+		(*it)->stop();
+	}
 }
 
 void CTaskManager::add(ITask &task, sint32 order, bool startNow)
 {
+// Check that the task is not already in the array
+	list<ITask*>::iterator result = find(Tasks.begin(), Tasks.end(), &task);
+	nlassert(result == Tasks.end());
+	result = find(OrderSortedTasks.begin(), OrderSortedTasks.end(), &task);
+	nlassert(result == OrderSortedTasks.end());
+
 	task.Order = order;
 
 	std::string n = task.name() + "Update";
@@ -198,7 +219,7 @@ void CTaskManager::add(ITask &task, sint32 order, bool startNow)
 		OrderSortedTasks.insert(it, &task);
 	}
 
-	nlinfo("Init during exec %s", task.name().c_str());
+//	nlinfo("Init during exec %s", task.name().c_str());
 	task.init();
 }
 
@@ -220,102 +241,24 @@ NLMISC_COMMAND(displayTasks, "display all task", "")
 {
 	if(args.size() != 0) return false;
 
-	log.displayNL("There's %d tasks:", CTaskManager::getInstance().Tasks.size());
+	log.displayNL("There's %d tasks:", CTaskManager::instance().Tasks.size());
 	log.displayNL("Init order call:");
-	for(std::list<ITask*>::iterator it = CTaskManager::getInstance().Tasks.begin(); it != CTaskManager::getInstance().Tasks.end(); it++)
+	for(std::list<ITask*>::iterator it = CTaskManager::instance().Tasks.begin(); it != CTaskManager::instance().Tasks.end(); it++)
 	{
 		//log.displayNL("  %s %s", (*it)->name().c_str(), ((*it)->Execute?"Running":"Stop"));
 	}
 	log.displayNL("Update order call:");
-	for(std::list<ITask*>::iterator it = CTaskManager::getInstance().OrderSortedTasks.begin(); it != CTaskManager::getInstance().OrderSortedTasks.end(); it++)
+	for(std::list<ITask*>::iterator it = CTaskManager::instance().OrderSortedTasks.begin(); it != CTaskManager::instance().OrderSortedTasks.end(); it++)
 	{
 		log.displayNL("  %s", (*it)->name().c_str());
 		(*it)->render();
 	}
 	log.displayNL("Release order call:");
-	for(std::list<ITask*>::reverse_iterator it = CTaskManager::getInstance().Tasks.rbegin(); it != CTaskManager::getInstance().Tasks.rend(); it++)
+	for(std::list<ITask*>::reverse_iterator it = CTaskManager::instance().Tasks.rbegin(); it != CTaskManager::instance().Tasks.rend(); it++)
 	{
 		log.displayNL("  %s", (*it)->name().c_str());
 		(*it)->release();
 	}
 
 	return true;
-}
-
-
-void checkTaskManagerPaused()
-{
-	{
-		bool pause;
-		{
-			CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-			pause = acces.value().pauseCount>0;
-			if(pause)
-				acces.value().ackPaused = true;
-		}
-		while (pause) 
-		{
-			nlSleep(10);
-			{
-				CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-				pause = acces.value().pauseCount>0;
-				if(pause)
-					acces.value().ackPaused = true;
-			}
-		}
-	}
-	{
-		CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-		acces.value().ackPaused = false;
-	}	
-}
-
-bool pauseTaskManager(bool waitAck)
-{
-	bool pause;
-	{
-		CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-		pause = acces.value().pauseCount>0;
-	}
-	if(!pause) 
-	{
-		bool ackPaused;
-		{
-			CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-			ackPaused = false;
-			acces.value().pauseCount++;
-		}
-		if(!waitAck) return true;
-		while(!ackPaused)
-		{
-			nlSleep(10);
-			{
-				CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-				ackPaused = acces.value().ackPaused;
-			}
-		}
-	}
-	else
-		return false;
-	return true;
-}
-
-bool isTaskManagerPaused()
-{
-	bool ackPaused;
-	{
-		CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-		ackPaused = acces.value().ackPaused;
-	}
-	return ackPaused;
-}
-
-void resumeTaskManager()
-{
-	CSynchronized<PauseFlags>::CAccessor acces(&taskManagerPauseFlags);
-	if(acces.value().pauseCount>0) 
-	{
-		acces.value().pauseCount--;
-		nlassert(acces.value().pauseCount>=0);
-	}	
 }

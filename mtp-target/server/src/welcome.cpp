@@ -1,18 +1,19 @@
-/* Copyright, 2003 Melting Pot
+/* Copyright, 2010 Tux Target
+ * Copyright, 2003 Melting Pot
  *
- * This file is part of MTP Target.
- * MTP Target is free software; you can redistribute it and/or modify
+ * This file is part of Tux Target.
+ * Tux Target is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
 
- * MTP Target is distributed in the hope that it will be useful, but
+ * Tux Target is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with MTP Target; see the file COPYING. If not, write to the
+ * along with Tux Target; see the file COPYING. If not, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA.
  */
@@ -117,7 +118,7 @@ string getUserFromCookie(const string &cookie, sint32 &totalScore,string &userTe
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void cbLSChooseShard (CMessage &msgin, const std::string &serviceName, uint16 sid)
+void cbLSChooseShard (CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	// the LS warns me that a new client want to come in my shard
 
@@ -178,7 +179,7 @@ void cbLSChooseShard (CMessage &msgin, const std::string &serviceName, uint16 si
 	nlinfo("Client %s will come with cookie %s to ip '%s' with total score %d userTexture '%s'", userName.c_str(), cookie.c_str(), ListenAddr.c_str(), totalScore,userTexture.c_str());
 }
 
-void cbFailed(CMessage &msgin, const std::string &serviceName, uint16 sid)
+void cbFailed(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	// I can't connect to the Login Service, just nlerror();
 	string reason;
@@ -186,7 +187,7 @@ void cbFailed(CMessage &msgin, const std::string &serviceName, uint16 sid)
 	nlerror(reason.c_str());
 }
 
-void cbLSDisconnectClient(CMessage &msgin, const std::string &serviceName, uint16 sid)
+void cbLSDisconnectClient(CMessage &msgin, const std::string &serviceName, TServiceId sid)
 {
 	// the LS tells me that i have to disconnect a client
 /*
@@ -207,7 +208,7 @@ void cbLSDisconnectClient(CMessage &msgin, const std::string &serviceName, uint1
 }
 
 // connection to the LS, send the identification message
-void cbLSConnection(const std::string &serviceName, uint16 sid, void *arg)
+void cbLSConnection (const std::string &serviceName, TServiceId  sid, void *arg)
 {
 	CMessage msgout("WS_IDENT");
 	sint32 shardId;
@@ -252,7 +253,7 @@ void cbLSConnection(const std::string &serviceName, uint16 sid, void *arg)
 
 	CUnifiedNetwork::getInstance()->send(sid, msgout);
 
-	nlinfo("Connected to %s-%hu and sent identification with shardId '%d'", serviceName.c_str(), sid, shardId);
+	nlinfo("Connected to %s-%hu and sent identification with shardId '%d'", serviceName.c_str(), sid.get(), shardId);
 }
 
 
@@ -283,7 +284,7 @@ void initWelcome()
 
 	nlinfo("Running server in Internet mode");
 
-	for(sint i = 0; i < IService::getInstance()->ConfigFile.getVar("LSHost").size(); i++)
+	for(uint i = 0; i < IService::getInstance()->ConfigFile.getVar("LSHost").size(); i++)
 	{
 		// add a connection to the LS
 		string LSAddr = IService::getInstance()->ConfigFile.getVar("LSHost").asString(i);
